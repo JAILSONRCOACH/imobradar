@@ -37,18 +37,7 @@
 @if ($modo === 'inicio')
     <section class="hero">
         <div class="hero-in">
-            <svg class="hero-radar" viewBox="0 0 400 400" aria-hidden="true">
-                <defs>
-                    <linearGradient id="varredura" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0" stop-color="#0F766E" stop-opacity="0" />
-                        <stop offset="1" stop-color="#14A395" stop-opacity=".55" />
-                    </linearGradient>
-                </defs>
-                <circle cx="200" cy="200" r="190" /><circle cx="200" cy="200" r="130" /><circle cx="200" cy="200" r="70" />
-                <line x1="10" y1="200" x2="390" y2="200" /><line x1="200" y1="10" x2="200" y2="390" />
-                <path class="varredura" d="M200 200 L390 200 A190 190 0 0 0 334 66 Z" fill="url(#varredura)" />
-                <circle class="blip" cx="268" cy="142" r="5" /><circle class="blip b2" cx="120" cy="250" r="4" /><circle class="blip b3" cx="238" cy="300" r="3.5" />
-            </svg>
+            <img class="hero-foto" src="{{ \App\Support\Foto::paisagem(0) }}" alt="" fetchpriority="high" referrerpolicy="no-referrer" onerror="this.remove()">
 
             <h1>Todos os imóveis da Paraíba numa busca só.</h1>
             <p class="hero-texto">Juntamos anúncios de portais, imobiliárias e classificados, tiramos os repetidos e guardamos o histórico de preço de cada um.</p>
