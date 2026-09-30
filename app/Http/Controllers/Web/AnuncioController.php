@@ -11,9 +11,11 @@ class AnuncioController extends Controller
     public function show(Anuncio $anuncio): View
     {
         $anuncio->load(['cidade', 'bairro', 'fonte', 'eventos']);
+        abort_unless($anuncio->fonte->ativa, 404);
 
         $duplicados = $anuncio->grupo_id
-            ? Anuncio::with('fonte:id,nome')->where('grupo_id', $anuncio->grupo_id)->whereKeyNot($anuncio->id)->orderBy('preco')->get()
+            ? Anuncio::with('fonte:id,nome')->where('grupo_id', $anuncio->grupo_id)
+                ->whereHas('fonte', fn ($q) => $q->where('ativa', true))->whereKeyNot($anuncio->id)->orderBy('preco')->get()
             : collect();
 
         // Referência de mercado: mediana de R$/m² dos anúncios ativos semelhantes (mesma cidade, tipo e finalidade).

@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Anuncio;
 use App\Models\AnuncioEvento;
 use App\Models\Cidade;
+use App\Models\Fonte;
 use App\Support\Normalizador;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -22,6 +25,8 @@ class BuscaController extends Controller
         'menor_m2' => 'Menor R$/m²',
         'maior_area' => 'Maior área',
     ];
+
+    private const FINALIDADES = ['venda' => 'Comprar', 'aluguel' => 'Alugar', 'temporada' => 'Temporada'];
 
     public function index(Request $request): View
     {
@@ -43,12 +48,47 @@ class BuscaController extends Controller
         $f['finalidade'] ??= 'venda';
         $f['ordem'] ??= 'recentes';
 
-        $cidade = ! empty($f['cidade']) ? Cidade::where('slug', $f['cidade'])->first() : null;
+        $cidades = $this->cidades();
 
-        $query = Anuncio::query()
-            ->with(['cidade:id,nome,slug', 'bairro:id,nome', 'fonte:id,nome'])
-            ->where('finalidade', $f['finalidade']);
+        // Aceita o slug ("joao-pessoa") ou o nome digitado ("João Pessoa", "joao pessoa").
+        $cidade = null;
+        $cidadeNaoEncontrada = null;
+        if (! empty($f['cidade']) && $f['cidade'] !== 'paraiba') {
+            $slug = Str::slug($f['cidade']);
+            $cidade = $cidades->firstWhere('slug', $slug);
+            if (! $cidade) {
+                $cidadeNaoEncontrada = $f['cidade'];
+            }
+        }
 
+        $buscou = $request->hasAny(['cidade', 'tipo', 'q', 'preco_min', 'preco_max', 'quartos', 'bairro', 'ordem']);
+
+        $dados = [
+            'filtros' => $f,
+            'cidadeAtual' => $cidade,
+            'cidadeNaoEncontrada' => $cidadeNaoEncontrada,
+            'cidades' => $cidades,
+            'finalidades' => self::FINALIDADES,
+            'tipos' => Normalizador::TIPOS,
+            'ordens' => self::ORDENS,
+            'resumo' => $this->resumo(),
+            'modo' => $buscou ? 'resultados' : 'inicio',
+        ];
+
+        if (! $buscou) {
+            $recentes = $this->base($f['finalidade'])
+                ->with(['cidade:id,nome,slug', 'bairro:id,nome', 'fonte:id,nome'])
+                ->where('status', 'ativo')
+                ->orderByDesc('primeira_vez_em')->orderByDesc('id')
+                ->limit(8)->get();
+
+            return view('busca.index', $dados + $this->marcadores($recentes) + ['anuncios' => $recentes, 'bairros' => collect()]);
+        }
+
+        $query = $this->base($f['finalidade'])->with(['cidade:id,nome,slug', 'bairro:id,nome', 'fonte:id,nome']);
+        if ($cidadeNaoEncontrada) {
+            $query->whereRaw('1 = 0');
+        }
         $this->filtrar($query, $f, $cidade);
 
         match ($f['ordem']) {
@@ -61,35 +101,49 @@ class BuscaController extends Controller
         };
         $query->orderByDesc('id');
 
-        $anuncios = $query->paginate(24)->withQueryString();
+        $anuncios = $query->paginate(30)->withQueryString();
 
+        return view('busca.index', $dados + $this->marcadores($anuncios->getCollection()) + [
+            'anuncios' => $anuncios,
+            'bairros' => $cidade
+                ? $cidade->bairros()->whereHas('anuncios', fn ($q) => $q->where('status', 'ativo'))->orderBy('nome')->get(['id', 'nome'])
+                : collect(),
+        ]);
+    }
+
+    /** Anúncios da finalidade, só de fontes ativas. */
+    private function base(string $finalidade): Builder
+    {
+        return Anuncio::query()
+            ->where('finalidade', $finalidade)
+            ->whereIn('fonte_id', $this->fontesAtivas());
+    }
+
+    private function fontesAtivas(): array
+    {
+        return Cache::remember('busca:fontes-ativas', 600, fn () => Fonte::where('ativa', true)->pluck('id')->all());
+    }
+
+    /** Selo de mudança de preço recente e quantidade de repetidos para os anúncios exibidos. */
+    private function marcadores(Collection $anuncios): array
+    {
         $ids = $anuncios->pluck('id');
         $grupos = $anuncios->pluck('grupo_id')->filter()->unique();
+
         $repetidos = $grupos->isEmpty() ? collect() : Anuncio::whereIn('grupo_id', $grupos)
             ->where('status', 'ativo')
             ->selectRaw('grupo_id, COUNT(*) as n')
             ->groupBy('grupo_id')
             ->pluck('n', 'grupo_id');
 
-        $ultimaMudanca = AnuncioEvento::whereIn('anuncio_id', $ids)
+        $ultimaMudanca = $ids->isEmpty() ? collect() : AnuncioEvento::whereIn('anuncio_id', $ids)
             ->where('tipo', 'preco')
             ->where('ocorrido_em', '>=', now()->subDays((int) config('imobradar.dias_novo'))->toDateString())
             ->orderBy('ocorrido_em')->orderBy('id')
             ->get()
             ->keyBy('anuncio_id');
 
-        return view('busca.index', [
-            'anuncios' => $anuncios,
-            'filtros' => $f,
-            'cidadeAtual' => $cidade,
-            'cidades' => $this->cidadesComAnuncios(),
-            'bairros' => $cidade ? $cidade->bairros()->whereHas('anuncios')->orderBy('nome')->get(['id', 'nome']) : collect(),
-            'tipos' => Normalizador::TIPOS,
-            'ordens' => self::ORDENS,
-            'repetidos' => $repetidos,
-            'ultimaMudanca' => $ultimaMudanca,
-            'resumo' => $this->resumo(),
-        ]);
+        return ['repetidos' => $repetidos, 'ultimaMudanca' => $ultimaMudanca];
     }
 
     private function filtrar(Builder $query, array $f, ?Cidade $cidade): void
@@ -137,27 +191,33 @@ class BuscaController extends Controller
         }
     }
 
-    private function cidadesComAnuncios()
+    /** Os 223 municípios, com a quantidade de anúncios ativos de cada um. */
+    private function cidades(): Collection
     {
-        return Cache::remember('busca:cidades', 600, fn () => Cidade::query()
-            ->whereHas('anuncios', fn ($q) => $q->where('status', 'ativo'))
-            ->withCount(['anuncios' => fn ($q) => $q->where('status', 'ativo')])
-            ->orderBy('nome')
-            ->get(['id', 'nome', 'slug']));
+        return Cache::remember('busca:cidades', 600, function () {
+            $fontes = $this->fontesAtivas();
+
+            return Cidade::query()
+                ->withCount(['anuncios' => fn ($q) => $q->where('status', 'ativo')->whereIn('fonte_id', $fontes)])
+                ->orderBy('nome')
+                ->get(['id', 'nome', 'slug']);
+        });
     }
 
     private function resumo(): array
     {
         return Cache::remember('busca:resumo', 600, function () {
             $desde = now()->subDays((int) config('imobradar.dias_novo'))->toDateString();
+            $fontes = $this->fontesAtivas();
+            $ativos = Anuncio::where('status', 'ativo')->whereIn('fonte_id', $fontes);
 
             return [
-                'ativos' => Anuncio::where('status', 'ativo')->count(),
-                'novos' => Anuncio::where('status', 'ativo')->where('primeira_vez_em', '>=', $desde)->count(),
+                'ativos' => (clone $ativos)->count(),
+                'novos' => (clone $ativos)->where('primeira_vez_em', '>=', $desde)->count(),
                 'reducoes' => AnuncioEvento::where('tipo', 'preco')->where('ocorrido_em', '>=', $desde)
                     ->whereColumn('preco_novo', '<', 'preco_anterior')->count(),
-                'cidades' => Anuncio::where('status', 'ativo')->distinct()->count('cidade_id'),
-                'fontes' => Anuncio::where('status', 'ativo')->distinct()->count('fonte_id'),
+                'cidades' => (clone $ativos)->distinct()->count('cidade_id'),
+                'fontes' => (clone $ativos)->distinct()->count('fonte_id'),
             ];
         });
     }

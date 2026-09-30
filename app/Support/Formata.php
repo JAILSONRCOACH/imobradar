@@ -36,6 +36,17 @@ class Formata
         };
     }
 
+    public static function unidadeCurta(?string $u): ?string
+    {
+        return match ($u) {
+            'mes' => 'por mês',
+            'diaria' => 'por diária',
+            'pacote' => 'pacote',
+            'a_confirmar' => 'período a confirmar',
+            default => null,
+        };
+    }
+
     public static function preco(?float $preco, ?string $unidade, bool $compacto = false): string
     {
         return $preco === null ? 'Sob consulta' : self::moeda($preco, $compacto).self::unidade($unidade);

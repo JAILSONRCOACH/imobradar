@@ -88,6 +88,9 @@ class ImportarLucena extends Command
                 continue;
             }
 
+            if (Fonte::where('slug', $fonteSlug)->where('ativa', false)->exists()) {
+                continue; // fonte desligada (ex.: Airbnb)
+            }
             $coleta = $this->coleta($fonteSlug);
             $historico = $this->historico($i, $item['preco']);
 
@@ -231,7 +234,8 @@ class ImportarLucena extends Command
 
         return [
             'id_externo' => $i['id'],
-            'titulo' => $i['t'] ?? null,
+            // Remove notas internas do monitoramento que foram parar no título.
+            'titulo' => isset($i['t']) ? trim(preg_replace('/\s*\((?:dados d[ao]|não verificado|página do anúncio)[^)]*\)/iu', '', $i['t'])) : null,
             'url' => $links[0]['u'] ?? null,
             'outros_links' => array_map(fn ($l) => ['fonte' => $l['n'] ?? null, 'url' => $l['u'] ?? null], array_slice($links, 1)),
             'cidade_ibge' => self::IBGE_LUCENA,

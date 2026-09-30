@@ -20,8 +20,8 @@ class FontesSeeder extends Seeder
         ['slug' => 'casa-forte', 'nome' => 'Casa Forte Imobiliária', 'site_url' => null, 'tipo' => 'imobiliaria'],
         ['slug' => 'caixa', 'nome' => 'Caixa (leilão)', 'site_url' => 'https://venda-imoveis.caixa.gov.br', 'tipo' => 'leilao'],
         ['slug' => 'pgfn', 'nome' => 'PGFN Comprei (leilão)', 'site_url' => null, 'tipo' => 'leilao'],
-        ['slug' => 'airbnb', 'nome' => 'Airbnb', 'site_url' => 'https://www.airbnb.com.br', 'tipo' => 'temporada'],
-        ['slug' => 'vrbo', 'nome' => 'Vrbo', 'site_url' => 'https://www.vrbo.com', 'tipo' => 'temporada'],
+        ['slug' => 'airbnb', 'nome' => 'Airbnb', 'site_url' => 'https://www.airbnb.com.br', 'tipo' => 'temporada', 'ativa' => false],
+        ['slug' => 'vrbo', 'nome' => 'Vrbo', 'site_url' => 'https://www.vrbo.com', 'tipo' => 'temporada', 'ativa' => false],
         ['slug' => 'temporada-livre', 'nome' => 'Temporada Livre', 'site_url' => 'https://www.temporadalivre.com', 'tipo' => 'temporada'],
     ];
 

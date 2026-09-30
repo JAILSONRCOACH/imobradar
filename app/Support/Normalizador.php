@@ -199,7 +199,7 @@ class Normalizador
             ? ($areaTerreno ?: $areaConstruida)
             : $areaConstruida;
 
-        if (! $area || $area < 10) {
+        if (! $area || $area < 20) {
             return null;
         }
 
