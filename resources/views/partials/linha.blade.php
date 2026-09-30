@@ -14,6 +14,7 @@
 @endphp
 <li class="linha {{ $a->status === 'removido' ? 'saiu' : '' }}">
     <a href="{{ route('anuncio.show', $a) }}" class="linha-link">
+        <div class="linha-icone">@include('partials.foto-vazia', ['tipo' => $a->tipo])</div>
         <div class="linha-corpo">
             <p class="linha-marcas">
                 <span class="linha-tipo">{{ $tipos[$a->tipo] ?? 'Imóvel' }}</span>

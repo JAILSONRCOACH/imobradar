@@ -37,7 +37,7 @@
 @if ($modo === 'inicio')
     <section class="hero">
         <div class="hero-in">
-            <img class="hero-foto" src="{{ \App\Support\Foto::paisagem(0) }}" alt="" fetchpriority="high" referrerpolicy="no-referrer" onerror="this.remove()">
+            <div class="hero-texto-col">
 
             <h1>Todos os imóveis da Paraíba numa busca só.</h1>
             <p class="hero-texto">Juntamos anúncios de portais, imobiliárias e classificados, tiramos os repetidos e guardamos o histórico de preço de cada um.</p>
@@ -63,6 +63,10 @@
                 {{ Formata::numero($resumo['novos']) }} novos e
                 {{ Formata::numero($resumo['reducoes']) }} {{ $resumo['reducoes'] === 1 ? 'redução' : 'reduções' }} de preço na última semana.
             </p>
+            </div>
+            <figure class="hero-capa">
+                <img src="{{ asset('img/capa-1200.jpg') }}" srcset="{{ asset('img/capa-1200.jpg') }} 1200w, {{ asset('img/capa.jpg') }} 1672w" sizes="(max-width: 900px) 100vw, 50vw" alt="Casa de praia com piscina e marcadores de localização sobre o litoral" width="1672" height="941" fetchpriority="high">
+            </figure>
         </div>
     </section>
 

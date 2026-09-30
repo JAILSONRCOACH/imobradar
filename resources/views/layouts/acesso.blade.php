@@ -15,7 +15,7 @@
 <body class="pagina-acesso">
 <div class="acesso">
     <aside class="acesso-lado">
-        <img class="acesso-foto" src="{{ \App\Support\Foto::paisagem(1, 1400) }}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">
+        <img class="acesso-foto" src="{{ asset('img/capa-1200.jpg') }}" alt="">
         <img class="acesso-logo" src="{{ asset('img/logo.png') }}" alt="IMOBRADAR" width="240" height="72">
         <p class="acesso-frase">Imóveis de toda a Paraíba numa busca só, com histórico de preço e sem anúncios repetidos.</p>
         <p class="acesso-contato">
