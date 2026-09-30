@@ -1,0 +1,467 @@
+{
+  "name": "IMOBRADAR - Busca sob demanda",
+  "nodes": [
+    {
+      "id": "2ce34045-3e3a-4c77-91eb-7368782a6c97",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "f2a19587-61a1-47a1-b3af-f2a52a1feedc",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "imobradar-busca",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "IMOBRADAR Webhook"
+        }
+      }
+    },
+    {
+      "id": "2299ad17-df76-4ac1-be83-80e6e5525080",
+      "name": "Abrir coleta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://imobradar.com.br/api/coletas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fonte: 'busca-web', fonte_nome: 'Busca na web', fonte_tipo: 'outro', cidade_ibge: $json.body.cidade_ibge, finalidade: $json.body.finalidade, busca_id: $json.body.busca_id }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "IMOBRADAR API"
+        }
+      }
+    },
+    {
+      "id": "4937fcac-681b-41d4-ac75-b91f4a26c4a1",
+      "name": "Montar pedido",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "27cb9248-7057-4f52-9fac-a8edd7fa8b39",
+              "name": "prompt",
+              "value": "={{ (() => {\n  const b = $('Webhook').first().json.body;\n  const oque = { venda: 'à venda', aluguel: 'para alugar (aluguel mensal)', temporada: 'para aluguel por temporada (diária)' }[b.finalidade] || 'à venda';\n  return `Você coleta anúncios imobiliários para o IMOBRADAR.\n\nTarefa: encontre anúncios ATIVOS de imóveis ${oque} no município de ${b.cidade}/PB (Paraíba, Brasil).\nPesquise em portais (OLX, ZAP Imóveis, VivaReal, Chaves na Mão, Imovelweb, MGF Imóveis) e em sites de imobiliárias e corretores da região. Faça buscas variadas: por tipo (casa, apartamento, terreno), por bairros e praias de ${b.cidade}, e por imobiliárias locais.\n\nRegras:\n- Só anúncios individuais: a URL precisa abrir UM imóvel, não uma página de listagem ou de busca.\n- Só imóveis localizados em ${b.cidade}/PB.\n- Não invente nada. Campo que não aparece na fonte fica null.\n- preco em reais, só número (ex.: 450000). area em m², só número.\n- fonte = nome do site onde o anúncio está (ex.: \"OLX\", \"ZAP Imóveis\", \"Imobiliária X\").\n- Traga o máximo que conseguir, até 60 anúncios, sem repetir a mesma URL.\n\nResponda SOMENTE com um array JSON, sem texto antes ou depois, neste formato:\n[{\"url\":\"\",\"titulo\":\"\",\"fonte\":\"\",\"tipo\":\"casa|casa_condominio|apartamento|cobertura|flat|terreno|chacara_sitio|comercial|outro\",\"preco\":null,\"bairro\":null,\"quartos\":null,\"suites\":null,\"banheiros\":null,\"vagas\":null,\"area_construida\":null,\"area_terreno\":null,\"piscina\":null,\"proximo_praia\":null,\"descricao\":null}]`;\n})() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "21bc6750-f2c6-4119-b07a-d294de7ecd55",
+      "name": "Claude busca na web",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-sonnet-5-5',\n  max_tokens: 16000,\n  tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 12, user_location: { type: 'approximate', country: 'BR', region: 'Paraíba', timezone: 'America/Sao_Paulo' } }],\n  messages: [{ role: 'user', content: $json.prompt }]\n}) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "id": "abc4eefe-6659-49bc-81c8-60d96cd46bae",
+      "name": "Extrair anúncios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        200
+      ],
+      "parameters": {
+        "jsCode": "// Junta os blocos de texto da resposta do Claude e extrai o array JSON de anúncios.\nconst resp = $input.first().json;\nconst texto = (resp.content || []).filter(b => b.type === 'text').map(b => b.text).join('\\n');\nlet lista = [];\nconst ini = texto.indexOf('['), fim = texto.lastIndexOf(']');\nif (ini >= 0 && fim > ini) {\n  try { lista = JSON.parse(texto.slice(ini, fim + 1)); } catch (e) { lista = []; }\n}\nconst b = $('Webhook').first().json.body;\nconst vistos = new Set();\nconst anuncios = (Array.isArray(lista) ? lista : [])\n  .filter(a => a && typeof a.url === 'string' && /^https?:\\/\\//i.test(a.url) && a.titulo)\n  .filter(a => { const k = a.url.split('#')[0]; if (vistos.has(k)) return false; vistos.add(k); return true; })\n  .map(a => ({\n    url: a.url, titulo: a.titulo, fonte: a.fonte || null, tipo: a.tipo || null,\n    finalidade: b.finalidade, cidade_ibge: b.cidade_ibge,\n    preco: a.preco, bairro: a.bairro, quartos: a.quartos, suites: a.suites, banheiros: a.banheiros,\n    vagas: a.vagas, area_construida: a.area_construida, area_terreno: a.area_terreno,\n    piscina: a.piscina, proximo_praia: a.proximo_praia, descricao: a.descricao,\n  }));\n\nconst uso = resp.usage || {};\nconst lotes = [];\nfor (let i = 0; i < anuncios.length; i += 100) lotes.push(anuncios.slice(i, i + 100));\nif (lotes.length === 0) return [{ json: { lote: [], total: 0, uso } }];\nreturn lotes.map(l => ({ json: { lote: l, total: anuncios.length, uso } }));"
+      }
+    },
+    {
+      "id": "d5b4db65-05da-43b0-afae-a9c278b69ad8",
+      "name": "Tem anúncios?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "16478a1c-fdc9-441f-ab7e-2b04fd6a4f5a",
+              "leftValue": "={{ $json.lote.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1fd41220-10ec-41dd-a25b-7f1d8c62f344",
+      "name": "Enviar lote",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://imobradar.com.br/api/coletas/{{ $('Abrir coleta').first().json.coleta_id }}/anuncios",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ anuncios: $json.lote }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "IMOBRADAR API"
+        }
+      }
+    },
+    {
+      "id": "60e59e5d-55d1-4830-8914-e76cbfa94a34",
+      "name": "Juntar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        100
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { lotes: $input.all().length } }];"
+      }
+    },
+    {
+      "id": "acd231a1-4579-4009-a632-b5a65fe59eab",
+      "name": "Finalizar coleta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2200,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://imobradar.com.br/api/coletas/{{ $('Abrir coleta').first().json.coleta_id }}/finalizar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ completa: false }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "IMOBRADAR API"
+        }
+      }
+    },
+    {
+      "id": "681d050b-c578-461a-9837-30386a373951",
+      "name": "Finalizar com erro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        420
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://imobradar.com.br/api/coletas/{{ $('Abrir coleta').first().json.coleta_id }}/finalizar",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ completa: false, erro: ('Claude: ' + JSON.stringify($json.error || $json).slice(0, 900)) }) }}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "IMOBRADAR API"
+        }
+      }
+    },
+    {
+      "id": "d192792d-bd8c-483e-8158-7d928b07b4da",
+      "name": "Pausou?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c4cd97fc-8180-4873-95be-82a10b3b489e",
+              "leftValue": "={{ $json.stop_reason }}",
+              "rightValue": "pause_turn",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ee637220-02cb-4f5e-a1b0-209fc9303e5c",
+      "name": "Claude continua",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        380
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'claude-sonnet-5-5',\n  max_tokens: 16000,\n  tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6, user_location: { type: 'approximate', country: 'BR', region: 'Paraíba', timezone: 'America/Sao_Paulo' } }],\n  messages: [\n    { role: 'user', content: $('Montar pedido').first().json.prompt },\n    { role: 'assistant', content: $json.content }\n  ]\n}) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Anthropic API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Abrir coleta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abrir coleta": {
+      "main": [
+        [
+          {
+            "node": "Montar pedido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar pedido": {
+      "main": [
+        [
+          {
+            "node": "Claude busca na web",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude busca na web": {
+      "main": [
+        [
+          {
+            "node": "Pausou?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalizar com erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair anúncios": {
+      "main": [
+        [
+          {
+            "node": "Tem anúncios?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem anúncios?": {
+      "main": [
+        [
+          {
+            "node": "Enviar lote",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalizar coleta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar lote": {
+      "main": [
+        [
+          {
+            "node": "Juntar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Juntar": {
+      "main": [
+        [
+          {
+            "node": "Finalizar coleta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pausou?": {
+      "main": [
+        [
+          {
+            "node": "Claude continua",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extrair anúncios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude continua": {
+      "main": [
+        [
+          {
+            "node": "Extrair anúncios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalizar com erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 600
+  },
+  "pinData": {}
+}

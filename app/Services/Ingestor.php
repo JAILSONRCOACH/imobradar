@@ -73,18 +73,31 @@ class Ingestor
     {
         $dados = $this->normalizar($coleta, $item);
         $dia = $data->toDateString();
+        $fonteId = $this->fonteDoItem($item) ?? $coleta->fonte_id;
 
         /** @var Anuncio|null $anuncio */
         $anuncio = Anuncio::query()
-            ->where('fonte_id', $coleta->fonte_id)
+            ->where('fonte_id', $fonteId)
             ->where('id_externo', $dados['id_externo'])
             ->where('finalidade', $dados['finalidade'])
             ->lockForUpdate()
             ->first();
 
+        // Mesmo anúncio já trazido por outro coletor (id diferente, mesmo endereço): atualiza em vez de duplicar.
+        if (! $anuncio) {
+            $anuncio = Anuncio::query()
+                ->where('url', $dados['url'])
+                ->where('finalidade', $dados['finalidade'])
+                ->lockForUpdate()
+                ->first();
+            if ($anuncio) {
+                unset($dados['id_externo']);
+            }
+        }
+
         if (! $anuncio) {
             $anuncio = Anuncio::create($dados + [
-                'fonte_id' => $coleta->fonte_id,
+                'fonte_id' => $fonteId,
                 'status' => 'ativo',
                 'primeira_vez_em' => $dia,
                 'ultima_vez_em' => $dia,
@@ -182,15 +195,14 @@ class Ingestor
      */
     private function normalizar(Coleta $coleta, array $item): array
     {
-        $idExterno = Normalizador::texto($item['id_externo'] ?? null, 191);
-        if ($idExterno === null) {
-            throw new DadoInvalido('id_externo ausente');
-        }
-
         $url = trim((string) ($item['url'] ?? ''));
         if (! preg_match('#^https?://#i', $url)) {
             throw new DadoInvalido('url ausente ou inválida');
         }
+        $url = preg_replace('/#.*$/', '', $url);
+
+        // Sem id do portal, o próprio endereço do anúncio identifica.
+        $idExterno = Normalizador::texto($item['id_externo'] ?? null, 191) ?? 'url-'.sha1(mb_strtolower($url));
 
         $titulo = Normalizador::texto($item['titulo'] ?? null, 500);
         if ($titulo === null) {
@@ -280,6 +292,29 @@ class Ingestor
             'duplicado_obs' => Normalizador::texto($item['duplicado_obs'] ?? null, 255),
             'hash_conteudo' => sha1($titulo.'|'.$descricao),
         ];
+    }
+
+    /** @var array<string, int> slug => id (0 = fonte desativada) */
+    private array $fontes = [];
+
+    /** Fonte informada no próprio anúncio (ex.: busca na web que acha anúncios de vários portais). */
+    private function fonteDoItem(array $item): ?int
+    {
+        $nome = Normalizador::texto($item['fonte'] ?? null, 120);
+        if ($nome === null) {
+            return null;
+        }
+        $slug = \App\Support\Fontes::slug($nome, $item['url'] ?? null);
+
+        if (! array_key_exists($slug, $this->fontes)) {
+            $fonte = \App\Models\Fonte::firstOrCreate(['slug' => $slug], ['nome' => $nome, 'tipo' => 'portal']);
+            $this->fontes[$slug] = $fonte->ativa ? $fonte->id : 0;
+        }
+        if ($this->fontes[$slug] === 0) {
+            throw new DadoInvalido("fonte {$slug} está desativada");
+        }
+
+        return $this->fontes[$slug];
     }
 
     private function cidadeId(array $item): ?int

@@ -45,6 +45,7 @@
         <p>O IMOBRADAR reúne anúncios públicos de portais, imobiliárias e classificados da Paraíba. Cada anúncio leva ao site onde foi publicado: confirme preço e disponibilidade lá antes de negociar.</p>
     </div>
 </footer>
+<script src="{{ asset('js/busca.js') }}?v={{ @filemtime(public_path('js/busca.js')) }}" defer></script>
 <script src="{{ asset('js/cidades.js') }}?v={{ @filemtime(public_path('js/cidades.js')) }}" defer></script>
 </body>
 </html>

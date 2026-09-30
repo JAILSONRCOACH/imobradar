@@ -117,6 +117,16 @@
     <div class="pagina">
         <header class="cabecalho-resultados">
             <h1>{{ $acao }} em {{ $lugar }}</h1>
+            @if ($buscaAtual)
+                <div class="buscando" data-busca="{{ route('busca.status', $buscaAtual) }}" role="status" aria-live="polite">
+                    <span class="buscando-radar" aria-hidden="true"></span>
+                    <span><strong>Buscando anúncios em {{ $cidadeAtual->nome }} agora.</strong> <span data-busca-texto>Isso leva de 1 a 3 minutos; a página atualiza sozinha.</span></span>
+                </div>
+            @elseif ($buscaMotivo)
+                <p class="aviso">{{ $buscaMotivo }}</p>
+            @elseif ($ultimaBusca)
+                <p class="atualizado">Buscado na web em {{ $ultimaBusca->concluida_em->format('d/m') }} às {{ $ultimaBusca->concluida_em->format('H:i') }}.</p>
+            @endif
             <p>{{ Formata::numero($anuncios->total()) }} {{ $anuncios->total() === 1 ? 'imóvel encontrado' : 'imóveis encontrados' }}@if (empty($filtros['repetidos']) && $anuncios->total()), sem contar os repetidos entre sites @endif</p>
         </header>
 
@@ -243,6 +253,9 @@
                 @if ($cidadeNaoEncontrada)
                     <h2>Não achamos a cidade “{{ $cidadeNaoEncontrada }}” na Paraíba.</h2>
                     <p>Confira a grafia ou escolha na lista de municípios.</p>
+                @elseif ($buscaAtual)
+                    <h2>Procurando anúncios em {{ $cidadeAtual->nome }}…</h2>
+                    <p>Estamos consultando portais, imobiliárias e classificados. Os imóveis aparecem aqui assim que a busca terminar.</p>
                 @elseif ($cidadeAtual && ! $cidadeAtual->anuncios_count)
                     <h2>{{ $cidadeAtual->nome }} ainda não entrou no radar.</h2>
                     <p>Os anúncios desta cidade ainda não estão sendo coletados. Enquanto isso, veja as cidades que já têm anúncios:</p>

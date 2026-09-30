@@ -29,6 +29,7 @@ Route::post('/aprovar/{user}', [AprovacaoLinkController::class, 'aprovar'])->mid
 // Área privada: só usuários aprovados
 Route::middleware('aprovado')->group(function () {
     Route::get('/', [BuscaController::class, 'index'])->name('busca');
+    Route::get('/busca/{busca}/status', [BuscaController::class, 'status'])->whereNumber('busca')->name('busca.status');
     Route::get('/imovel/{anuncio}', [AnuncioController::class, 'show'])->whereNumber('anuncio')->name('anuncio.show');
 
     Route::middleware('admin')->prefix('admin')->group(function () {

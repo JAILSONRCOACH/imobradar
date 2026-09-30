@@ -31,6 +31,7 @@ class ColetaController extends Controller
             'cidade_ibge' => ['nullable', 'integer'],
             'cidade' => ['nullable', 'string', 'max:120'],
             'finalidade' => ['nullable', Rule::in(Normalizador::FINALIDADES)],
+            'busca_id' => ['nullable', 'integer', 'exists:buscas,id'],
         ]);
 
         $fonte = Fonte::firstOrCreate(
@@ -59,6 +60,7 @@ class ColetaController extends Controller
             'fonte_id' => $fonte->id,
             'cidade_id' => $cidadeId,
             'finalidade' => $v['finalidade'] ?? null,
+            'busca_id' => $v['busca_id'] ?? null,
             'status' => 'em_andamento',
             'iniciada_em' => now(),
         ]);
@@ -95,6 +97,18 @@ class ColetaController extends Controller
         ]);
 
         $coleta = $ingestor->finalizar($coleta, (bool) $v['completa'], $v['erro'] ?? null);
+        foreach (['busca:resumo', 'busca:cidades', 'busca:fontes-ativas'] as $chave) {
+            \Illuminate\Support\Facades\Cache::forget($chave);
+        }
+
+        if ($coleta->busca_id && ($busca = \App\Models\Busca::find($coleta->busca_id))) {
+            app(\App\Services\BuscaSobDemanda::class)->concluir(
+                $busca,
+                $coleta->novos + $coleta->alterados + $coleta->voltaram + max(0, $coleta->recebidos - $coleta->novos - $coleta->alterados - $coleta->voltaram - $coleta->rejeitados),
+                $coleta->novos,
+                $v['erro'] ?? null,
+            );
+        }
 
         return response()->json($coleta->only([
             'id', 'status', 'recebidos', 'novos', 'alterados', 'voltaram', 'removidos', 'rejeitados', 'iniciada_em', 'finalizada_em',

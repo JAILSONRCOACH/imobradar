@@ -134,6 +134,12 @@ class BuscaController extends Controller
             return view('busca.index', $dados + $this->marcadores($recentes) + ['anuncios' => $recentes, 'bairros' => collect()]);
         }
 
+        // Busca sob demanda: se a cidade não foi buscada nas últimas horas, dispara a busca na web agora.
+        $sobDemanda = ['busca' => null, 'motivo' => null];
+        if ($cidade && empty($f['removidos'])) {
+            $sobDemanda = app(\App\Services\BuscaSobDemanda::class)->garantir($cidade, $f['finalidade'], $request->user());
+        }
+
         $panorama = $cidadeNaoEncontrada ? null : $this->panorama($f, $cidade);
 
         $query = $this->base($f['finalidade'])->with(['cidade:id,nome,slug', 'bairro:id,nome', 'fonte:id,nome']);
@@ -175,6 +181,9 @@ class BuscaController extends Controller
             'anuncios' => $anuncios,
             'panorama' => $panorama,
             'grupos' => self::GRUPOS,
+            'buscaAtual' => $sobDemanda['busca'],
+            'buscaMotivo' => $sobDemanda['motivo'],
+            'ultimaBusca' => $cidade ? \App\Models\Busca::where('cidade_id', $cidade->id)->where('finalidade', $f['finalidade'])->where('status', 'concluida')->latest('concluida_em')->first() : null,
             'bairros' => $cidade
                 ? $cidade->bairros()->whereHas('anuncios', fn ($q) => $q->where('status', 'ativo'))->orderBy('nome')->get(['id', 'nome'])
                 : collect(),
@@ -232,6 +241,22 @@ class BuscaController extends Controller
             'm2PorTipo' => $m2PorTipo,
             'novidades' => $novos->merge($mudaram)->unique()->count(),
         ];
+    }
+
+    /** Situação de uma busca sob demanda (consultada pela página enquanto espera). */
+    public function status(\App\Models\Busca $busca): \Illuminate\Http\JsonResponse
+    {
+        if ($busca->status === 'buscando' && ! $busca->emAndamento()) {
+            $busca->update(['status' => 'falhou', 'erro' => 'Sem resposta do n8n no tempo limite.']);
+        }
+        // Enquanto busca, conta o que já chegou pelas coletas ligadas a ela.
+        $recebidos = \App\Models\Coleta::where('busca_id', $busca->id)->sum('recebidos');
+
+        return response()->json([
+            'status' => $busca->status,
+            'encontrados' => $busca->status === 'buscando' ? (int) $recebidos : $busca->encontrados,
+            'novos' => $busca->novos,
+        ]);
     }
 
     /** Anúncios da finalidade, só de fontes ativas. */
