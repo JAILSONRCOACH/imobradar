@@ -31,14 +31,6 @@
 
     <div class="ficha-corpo">
         <div class="coluna">
-            @php $foto = \App\Support\Foto::doAnuncio($anuncio, 1400); @endphp
-            <div class="ficha-foto">
-                @include('partials.foto-vazia', ['tipo' => $anuncio->tipo])
-                @if ($foto['url'])
-                    <img src="{{ $foto['url'] }}" alt="{{ $foto['ilustrativa'] ? '' : 'Foto do anúncio em '.$anuncio->fonte->nome }}" referrerpolicy="no-referrer" onerror="this.nextElementSibling && this.nextElementSibling.remove(); this.remove()">
-                    <small class="selo-ilustrativa">{{ $foto['ilustrativa'] ? 'Imagem ilustrativa. Veja as fotos reais no anúncio original.' : 'Foto: '.$anuncio->fonte->nome }}</small>
-                @endif
-            </div>
 
         <section class="bloco">
             <h2>Características</h2>

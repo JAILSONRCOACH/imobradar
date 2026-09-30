@@ -14,14 +14,6 @@
 @endphp
 <li class="linha {{ $a->status === 'removido' ? 'saiu' : '' }}">
     <a href="{{ route('anuncio.show', $a) }}" class="linha-link">
-        @php $foto = \App\Support\Foto::doAnuncio($a); @endphp
-        <div class="linha-foto">
-            @include('partials.foto-vazia', ['tipo' => $a->tipo])
-            @if ($foto['url'])
-                <img src="{{ $foto['url'] }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.nextElementSibling && this.nextElementSibling.remove(); this.remove()">
-                @if ($foto['ilustrativa']) <small class="selo-ilustrativa">Imagem ilustrativa</small> @endif
-            @endif
-        </div>
         <div class="linha-corpo">
             <p class="linha-marcas">
                 <span class="linha-tipo">{{ $tipos[$a->tipo] ?? 'Imóvel' }}</span>
