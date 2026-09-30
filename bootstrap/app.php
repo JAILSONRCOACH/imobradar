@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\AcessoAprovado;
+use App\Http\Middleware\SomenteAdmin;
 use App\Http\Middleware\TokenIngestao;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -15,9 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'token.ingestao' => TokenIngestao::class,
+            'aprovado' => AcessoAprovado::class,
+            'admin' => SomenteAdmin::class,
         ]);
         // Hostinger fica atrás de proxy/CDN: confia no cabeçalho X-Forwarded-* para HTTPS e IP real.
         $middleware->trustProxies(at: '*');
+        $middleware->redirectGuestsTo(fn () => route('entrar'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // A API sempre responde JSON, mesmo sem o cabeçalho Accept.

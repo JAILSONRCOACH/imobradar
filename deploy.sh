@@ -20,7 +20,6 @@ echo "==> Caches"
 $PHP artisan config:cache
 $PHP artisan route:cache
 $PHP artisan view:cache
-$PHP artisan cache:forget busca:resumo >/dev/null 2>&1 || true
-$PHP artisan cache:forget busca:cidades >/dev/null 2>&1 || true
+$PHP artisan cache:clear >/dev/null 2>&1 || true
 
 echo "==> Pronto"

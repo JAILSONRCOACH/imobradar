@@ -71,6 +71,9 @@ class IngestaoApiTest extends TestCase
         $c = $this->api('/api/coletas', ['fonte' => 'olx', 'cidade_ibge' => 2508604, 'finalidade' => 'venda'])->json('coleta_id');
         $this->api("/api/coletas/{$c}/anuncios", ['anuncios' => [$this->anuncio('A', '450000')]]);
 
+        $this->get('/')->assertRedirect('/entrar');
+
+        $this->actingAs(\App\Models\User::factory()->create(['status' => 'aprovado']));
         $this->get('/')->assertOk()->assertSee('Casa A');
         $this->get('/?cidade=lucena&tipo=casa&ordem=menor_preco')->assertOk()->assertSee('Casa A');
         $this->get('/imovel/'.Anuncio::first()->id)->assertOk()->assertSee('Histórico no radar');

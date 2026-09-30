@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8">
+    <meta name="robots" content="noindex">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('titulo', 'Imóveis na Paraíba') | IMOBRADAR</title>
     <meta name="description" content="@yield('descricao', 'Busque imóveis à venda e para alugar em qualquer cidade da Paraíba. Anúncios de vários portais e imobiliárias, atualizados todos os dias.')">
@@ -23,6 +24,15 @@
         @hasSection('busca-topo')
             <div class="topo-busca">@yield('busca-topo')</div>
         @endif
+        @auth
+            <nav class="topo-conta" aria-label="Sua conta">
+                @if (auth()->user()->is_admin)
+                    @php $pendentes = \App\Models\User::where('status', 'pendente')->count(); @endphp
+                    <a href="{{ route('admin.usuarios') }}">Cadastros @if ($pendentes)<span class="contador">{{ $pendentes }}</span>@endif</a>
+                @endif
+                <form method="post" action="{{ route('sair') }}">@csrf <button type="submit" class="link-botao">Sair</button></form>
+            </nav>
+        @endauth
     </div>
 </header>
 
