@@ -35,8 +35,8 @@
             <svg class="hero-radar" viewBox="0 0 400 400" aria-hidden="true">
                 <defs>
                     <linearGradient id="varredura" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0" stop-color="#F4B400" stop-opacity="0" />
-                        <stop offset="1" stop-color="#F4B400" stop-opacity=".45" />
+                        <stop offset="0" stop-color="#0F766E" stop-opacity="0" />
+                        <stop offset="1" stop-color="#14A395" stop-opacity=".55" />
                     </linearGradient>
                 </defs>
                 <circle cx="200" cy="200" r="190" /><circle cx="200" cy="200" r="130" /><circle cx="200" cy="200" r="70" />
