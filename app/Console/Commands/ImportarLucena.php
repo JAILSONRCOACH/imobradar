@@ -154,6 +154,12 @@ class ImportarLucena extends Command
         }
         $agrupados = $agrupador->agrupar($pares);
 
+        // Atualiza os números da página inicial e da busca.
+        foreach (['busca:resumo', 'busca:cidades', 'busca:fontes-ativas'] as $chave) {
+            \Illuminate\Support\Facades\Cache::forget($chave);
+        }
+
+        $this->line('Importação concluída em '.now()->format('d/m/Y H:i'));
         $this->table(
             ['novos', 'alterados', 'voltaram', 'iguais', 'rejeitados', 'agrupados'],
             [[...array_values($contagem), $agrupados]],
