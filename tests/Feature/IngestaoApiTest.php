@@ -76,6 +76,7 @@ class IngestaoApiTest extends TestCase
         $this->actingAs(\App\Models\User::factory()->create(['status' => 'aprovado']));
         $this->get('/')->assertOk()->assertSee('Casa A');
         $this->get('/?cidade=lucena&tipo=casa&ordem=menor_preco')->assertOk()->assertSee('Casa A');
+        $this->get('/?cidade=lucena&grupo=casas&novidades=1&abaixo=1')->assertOk()->assertSee('Casa mediana');
         $this->get('/?cidade='.urlencode('Fagundes (Lucena)'))->assertOk()->assertSee('Fagundes, Lucena')->assertSee('Casa A');
         $this->get('/?cidade='.urlencode('Jacumã (Conde)'))->assertOk()->assertSee('Jacumã, Conde');
         $this->get('/imovel/'.Anuncio::first()->id)->assertOk()->assertSee('Histórico no radar');

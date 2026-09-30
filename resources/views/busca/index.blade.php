@@ -127,8 +127,62 @@
             <p>{{ Formata::numero($anuncios->total()) }} {{ $anuncios->total() === 1 ? 'imóvel encontrado' : 'imóveis encontrados' }}@if (empty($filtros['repetidos']) && $anuncios->total()), sem contar os repetidos entre sites @endif</p>
         </header>
 
+        @if ($panorama && $panorama['total'])
+            @php
+                $pg = $panorama['grupos'];
+                $rotuloTotal = ['venda' => 'À venda', 'aluguel' => 'Para alugar', 'temporada' => 'Para temporada'][$filtros['finalidade']];
+                $partes = collect($grupos)->map(fn ($g, $k) => $pg[$k]['total'] ? $pg[$k]['total'].' '.mb_strtolower($g['rotulo']) : null)->filter()->implode(', ');
+                $unidadeMediana = $filtros['finalidade'] === 'venda' ? '' : ($filtros['finalidade'] === 'aluguel' ? ' por mês' : ' por diária');
+                $alternar = fn (string $chave) => request()->fullUrlWithQuery([$chave => empty($filtros[$chave]) ? 1 : null, 'page' => null]);
+            @endphp
+            <section class="panorama" aria-label="Resumo de {{ $lugar }}">
+                <div class="numero">
+                    <h2>{{ $rotuloTotal }}</h2>
+                    <strong>{{ Formata::numero($panorama['total']) }}</strong>
+                    <p>{{ $partes }}</p>
+                </div>
+                <div class="numero">
+                    <h2>Casa mediana</h2>
+                    <strong>{{ $pg['casas']['mediana'] ? Formata::moeda($pg['casas']['mediana'], true) : 'sem dados' }}</strong>
+                    <p>{{ $pg['casas']['com_preco'] }} {{ $pg['casas']['com_preco'] === 1 ? 'casa' : 'casas' }} com preço{{ $unidadeMediana }}</p>
+                </div>
+                <div class="numero">
+                    <h2>Terreno mediano</h2>
+                    <strong>{{ $pg['terrenos']['mediana'] ? Formata::moeda($pg['terrenos']['mediana'], true) : 'sem dados' }}</strong>
+                    <p>@if ($pg['terrenos']['mediana_m2'])R$ {{ Formata::numero($pg['terrenos']['mediana_m2']) }}/m², @endif @if ($pg['terrenos']['maximo']) até {{ Formata::moeda($pg['terrenos']['maximo'], true) }} @else {{ $pg['terrenos']['com_preco'] }} com preço @endif</p>
+                </div>
+                <div class="numero">
+                    <h2>Apto ou flat</h2>
+                    <strong>{{ $pg['aptos']['mediana'] ? Formata::moeda($pg['aptos']['mediana'], true) : 'sem dados' }}</strong>
+                    <p>{{ $pg['aptos']['com_preco'] }} com preço{{ $unidadeMediana }}</p>
+                </div>
+            </section>
+
+            <nav class="chips" aria-label="Tipo de imóvel">
+                <a href="{{ request()->fullUrlWithQuery(['grupo' => null, 'tipo' => null, 'page' => null]) }}" @if (empty($filtros['grupo'])) aria-current="true" @endif>Todos <span>{{ $panorama['total'] }}</span></a>
+                @foreach ($grupos as $chave => $g)
+                    @if ($pg[$chave]['total'])
+                        <a href="{{ request()->fullUrlWithQuery(['grupo' => $chave, 'tipo' => null, 'page' => null]) }}" @if (($filtros['grupo'] ?? '') === $chave) aria-current="true" @endif>{{ $g['rotulo'] }} <span>{{ $pg[$chave]['total'] }}</span></a>
+                    @endif
+                @endforeach
+            </nav>
+            <nav class="chips chips-leves" aria-label="Filtros rápidos">
+                @if ($panorama['m2PorTipo'])
+                    <a href="{{ $alternar('abaixo') }}" @if (! empty($filtros['abaixo'])) aria-current="true" @endif title="R$/m² abaixo da mediana de imóveis do mesmo tipo">Abaixo da mediana</a>
+                @endif
+                <a href="{{ $alternar('piscina') }}" @if (! empty($filtros['piscina'])) aria-current="true" @endif>Piscina</a>
+                <a href="{{ $alternar('praia') }}" @if (! empty($filtros['praia'])) aria-current="true" @endif>Beira-mar</a>
+                <a href="{{ $alternar('novidades') }}" @if (! empty($filtros['novidades'])) aria-current="true" @endif>Novos ou com preço alterado <span>{{ $panorama['novidades'] }}</span></a>
+                <a href="{{ $alternar('repetidos') }}" @if (! empty($filtros['repetidos'])) aria-current="true" @endif>Mostrar repetidos</a>
+                <a href="{{ $alternar('removidos') }}" @if (! empty($filtros['removidos'])) aria-current="true" @endif>Mostrar os que saíram</a>
+            </nav>
+        @endif
+
         <form method="get" action="{{ route('busca') }}" class="filtros">
             <input type="hidden" name="finalidade" value="{{ $filtros['finalidade'] }}">
+            @foreach (['grupo', 'abaixo', 'novidades', 'piscina', 'praia', 'repetidos', 'removidos'] as $chip)
+                @if (! empty($filtros[$chip])) <input type="hidden" name="{{ $chip }}" value="{{ $filtros[$chip] }}"> @endif
+            @endforeach
             <input type="hidden" name="cidade" value="{{ $cidadeAtual?->slug ?? ($cidadeNaoEncontrada ?: 'paraiba') }}">
 
             <div class="filtros-linha">
@@ -178,10 +232,6 @@
             </div>
 
             <div class="filtros-linha filtros-extra">
-                <label class="opcao"><input type="checkbox" name="piscina" value="1" @checked(! empty($filtros['piscina']))> Com piscina</label>
-                <label class="opcao"><input type="checkbox" name="praia" value="1" @checked(! empty($filtros['praia']))> Perto da praia</label>
-                <label class="opcao"><input type="checkbox" name="repetidos" value="1" @checked(! empty($filtros['repetidos']))> Mostrar repetidos</label>
-                <label class="opcao"><input type="checkbox" name="removidos" value="1" @checked(! empty($filtros['removidos']))> Incluir os que saíram do ar</label>
 
                 <label class="ordem">
                     <span>Ordenar por</span>

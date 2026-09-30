@@ -326,3 +326,25 @@ h2 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
   .linha-foto { order: 0; aspect-ratio: 16 / 9; }
   .linha-corpo { order: 1; }
 }
+
+/* ---------- panorama da cidade ---------- */
+.panorama { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
+.numero { background: var(--papel); border: 1px solid var(--linha); border-radius: 14px; padding: 16px 18px; min-width: 0; }
+.numero h2 { font-size: 14px; font-weight: 600; color: var(--tinta-2); letter-spacing: 0; }
+.numero strong { display: block; margin: 4px 0 2px; font-size: 28px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+.numero p { margin: 0; color: var(--apagado); font-size: 14px; }
+.numero:first-child { background: var(--mar); border-color: var(--mar); }
+.numero:first-child h2, .numero:first-child p { color: #CBD5E1; }
+.numero:first-child strong { color: #fff; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.chips a { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; background: var(--papel); border: 1px solid var(--linha); color: var(--tinta); text-decoration: none; font-weight: 600; font-size: 15px; }
+.chips a span { color: var(--apagado); font-weight: 600; font-size: 13px; }
+.chips a:hover { border-color: var(--esmeralda); }
+.chips a[aria-current="true"] { background: var(--mar); border-color: var(--mar); color: #fff; }
+.chips a[aria-current="true"] span { color: #CBD5E1; }
+.chips-leves { margin-top: 10px; }
+.chips-leves a { font-weight: 500; font-size: 14px; padding: 7px 12px; }
+.chips-leves a[aria-current="true"] { background: var(--esmeralda); border-color: var(--esmeralda); }
+.filtros { margin-top: 16px; }
+@media (max-width: 820px) { .panorama { grid-template-columns: repeat(2, minmax(0, 1fr)); } .numero strong { font-size: 22px; } }
+@media (max-width: 420px) { .chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; } .chips a { flex: none; } }

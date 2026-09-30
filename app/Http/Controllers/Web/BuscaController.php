@@ -51,6 +51,14 @@ class BuscaController extends Controller
         'ponta-de-lucena' => ['lucena', 'Ponta de Lucena'],
     ];
 
+    /** Agrupamento dos tipos nos botões do topo dos resultados. */
+    public const GRUPOS = [
+        'casas' => ['rotulo' => 'Casas', 'tipos' => ['casa', 'casa_condominio']],
+        'terrenos' => ['rotulo' => 'Terrenos', 'tipos' => ['terreno']],
+        'aptos' => ['rotulo' => 'Aptos e flats', 'tipos' => ['apartamento', 'cobertura', 'flat', 'kitnet']],
+        'outros' => ['rotulo' => 'Chácaras e outros', 'tipos' => ['chacara_sitio', 'fazenda', 'sala_comercial', 'loja', 'galpao', 'comercial', 'outro']],
+    ];
+
     private const FINALIDADES = ['venda' => 'Comprar', 'aluguel' => 'Alugar', 'temporada' => 'Temporada'];
 
     public function index(Request $request): View
@@ -69,6 +77,9 @@ class BuscaController extends Controller
             'ordem' => ['nullable', Rule::in(array_keys(self::ORDENS))],
             'removidos' => ['nullable', 'boolean'],
             'repetidos' => ['nullable', 'boolean'],
+            'grupo' => ['nullable', Rule::in(array_keys(self::GRUPOS))],
+            'abaixo' => ['nullable', 'boolean'],
+            'novidades' => ['nullable', 'boolean'],
         ]);
         $f['finalidade'] ??= 'venda';
         $f['ordem'] ??= 'recentes';
@@ -98,7 +109,7 @@ class BuscaController extends Controller
             }
         }
 
-        $buscou = $request->hasAny(['cidade', 'tipo', 'q', 'preco_min', 'preco_max', 'quartos', 'bairro', 'ordem']);
+        $buscou = $request->hasAny(['cidade', 'tipo', 'q', 'preco_min', 'preco_max', 'quartos', 'bairro', 'ordem', 'grupo', 'abaixo', 'novidades']);
 
         $dados = [
             'filtros' => $f,
@@ -123,11 +134,30 @@ class BuscaController extends Controller
             return view('busca.index', $dados + $this->marcadores($recentes) + ['anuncios' => $recentes, 'bairros' => collect()]);
         }
 
+        $panorama = $cidadeNaoEncontrada ? null : $this->panorama($f, $cidade);
+
         $query = $this->base($f['finalidade'])->with(['cidade:id,nome,slug', 'bairro:id,nome', 'fonte:id,nome']);
         if ($cidadeNaoEncontrada) {
             $query->whereRaw('1 = 0');
         }
         $this->filtrar($query, $f, $cidade);
+        if (! empty($f['grupo'])) {
+            $query->whereIn('tipo', self::GRUPOS[$f['grupo']]['tipos']);
+        }
+        if (! empty($f['abaixo']) && $panorama) {
+            // R$/m² abaixo da mediana do mesmo tipo, na mesma cidade e finalidade.
+            $query->where(function ($q) use ($panorama) {
+                $q->whereRaw('1 = 0');
+                foreach ($panorama['m2PorTipo'] as $tipo => $mediana) {
+                    $q->orWhere(fn ($w) => $w->where('tipo', $tipo)->where('preco_m2', '<', $mediana));
+                }
+            });
+        }
+        if (! empty($f['novidades'])) {
+            $desde = now()->subDays((int) config('imobradar.dias_novo'))->toDateString();
+            $query->where(fn ($q) => $q->where('primeira_vez_em', '>=', $desde)
+                ->orWhereIn('id', AnuncioEvento::where('tipo', 'preco')->where('ocorrido_em', '>=', $desde)->select('anuncio_id')));
+        }
 
         match ($f['ordem']) {
             'menor_preco' => $query->orderByRaw('preco IS NULL')->orderBy('preco'),
@@ -143,10 +173,65 @@ class BuscaController extends Controller
 
         return view('busca.index', $dados + $this->marcadores($anuncios->getCollection()) + [
             'anuncios' => $anuncios,
+            'panorama' => $panorama,
+            'grupos' => self::GRUPOS,
             'bairros' => $cidade
                 ? $cidade->bairros()->whereHas('anuncios', fn ($q) => $q->where('status', 'ativo'))->orderBy('nome')->get(['id', 'nome'])
                 : collect(),
         ]);
+    }
+
+    /**
+     * Números da cidade (ou da Paraíba) para a finalidade escolhida, sem contar repetidos
+     * e sem os filtros finos: total por grupo de tipo, medianas e novidades da semana.
+     */
+    private function panorama(array $f, ?Cidade $cidade): array
+    {
+        $q = $this->base($f['finalidade']);
+        $this->filtrar($q, ['bairro' => $f['bairro'] ?? null], $cidade);
+        $linhas = $q->get(['id', 'tipo', 'preco', 'preco_m2', 'primeira_vez_em']);
+
+        $mediana = function ($valores) {
+            $v = collect($valores)->filter(fn ($x) => $x > 0)->sort()->values();
+            $n = $v->count();
+            if ($n === 0) {
+                return null;
+            }
+
+            return $n % 2 ? $v[intdiv($n, 2)] : ($v[$n / 2 - 1] + $v[$n / 2]) / 2;
+        };
+
+        $grupos = [];
+        foreach (self::GRUPOS as $chave => $g) {
+            $doGrupo = $linhas->whereIn('tipo', $g['tipos']);
+            $grupos[$chave] = [
+                'total' => $doGrupo->count(),
+                'com_preco' => $doGrupo->whereNotNull('preco')->count(),
+                'mediana' => $mediana($doGrupo->pluck('preco')),
+                'mediana_m2' => $mediana($doGrupo->pluck('preco_m2')),
+                'maximo' => $doGrupo->max('preco'),
+            ];
+        }
+
+        $m2PorTipo = [];
+        foreach ($linhas->groupBy('tipo') as $tipo => $doTipo) {
+            if ($doTipo->whereNotNull('preco_m2')->count() >= 5) {
+                $m2PorTipo[$tipo] = $mediana($doTipo->pluck('preco_m2'));
+            }
+        }
+
+        $desde = now()->subDays((int) config('imobradar.dias_novo'))->toDateString();
+        $ids = $linhas->pluck('id');
+        $mudaram = $ids->isEmpty() ? collect() : AnuncioEvento::whereIn('anuncio_id', $ids)
+            ->where('tipo', 'preco')->where('ocorrido_em', '>=', $desde)->distinct()->pluck('anuncio_id');
+        $novos = $linhas->filter(fn ($l) => $l->primeira_vez_em && $l->primeira_vez_em->toDateString() >= $desde)->pluck('id');
+
+        return [
+            'total' => $linhas->count(),
+            'grupos' => $grupos,
+            'm2PorTipo' => $m2PorTipo,
+            'novidades' => $novos->merge($mudaram)->unique()->count(),
+        ];
     }
 
     /** Anúncios da finalidade, só de fontes ativas. */
