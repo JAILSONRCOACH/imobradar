@@ -26,6 +26,31 @@ class BuscaController extends Controller
         'maior_area' => 'Maior área',
     ];
 
+    /**
+     * Praias e bairros conhecidos que as pessoas digitam no lugar da cidade.
+     * slug da localidade => [slug do município, nome exibido]
+     */
+    public const LOCALIDADES = [
+        'jacuma' => ['conde', 'Jacumã'],
+        'carapibus' => ['conde', 'Carapibus'],
+        'tabatinga' => ['conde', 'Tabatinga'],
+        'coqueirinho' => ['conde', 'Coqueirinho'],
+        'tambaba' => ['conde', 'Tambaba'],
+        'gurugi' => ['conde', 'Gurugi'],
+        'cabo-branco' => ['joao-pessoa', 'Cabo Branco'],
+        'tambau' => ['joao-pessoa', 'Tambaú'],
+        'manaira' => ['joao-pessoa', 'Manaíra'],
+        'bessa' => ['joao-pessoa', 'Bessa'],
+        'altiplano' => ['joao-pessoa', 'Altiplano'],
+        'intermares' => ['cabedelo', 'Intermares'],
+        'camboinha' => ['cabedelo', 'Camboinha'],
+        'ponta-de-campina' => ['cabedelo', 'Ponta de Campina'],
+        'fagundes' => ['lucena', 'Fagundes'],
+        'costinha' => ['lucena', 'Costinha'],
+        'camacari' => ['lucena', 'Camaçari'],
+        'ponta-de-lucena' => ['lucena', 'Ponta de Lucena'],
+    ];
+
     private const FINALIDADES = ['venda' => 'Comprar', 'aluguel' => 'Alugar', 'temporada' => 'Temporada'];
 
     public function index(Request $request): View
@@ -51,11 +76,23 @@ class BuscaController extends Controller
         $cidades = $this->cidades();
 
         // Aceita o slug ("joao-pessoa") ou o nome digitado ("João Pessoa", "joao pessoa").
+        // Também aceita praias e bairros ("Jacumã" vira Conde, filtrando pelo bairro quando ele existir).
         $cidade = null;
         $cidadeNaoEncontrada = null;
+        $localidade = null;
         if (! empty($f['cidade']) && $f['cidade'] !== 'paraiba') {
-            $slug = Str::slug($f['cidade']);
-            $cidade = $cidades->firstWhere('slug', $slug);
+            // "Fagundes (Lucena)" = praia de Lucena; "Fagundes" sozinho = o município de Fagundes.
+            $entreParenteses = preg_match('/^(.*?)\s*\((.+)\)\s*$/u', $f['cidade'], $m) ? Str::slug($m[2]) : null;
+            $slug = Str::slug($entreParenteses ? $m[1] : $f['cidade']);
+            $pedeLocalidade = $entreParenteses && (self::LOCALIDADES[$slug][0] ?? null) === $entreParenteses;
+            $cidade = $pedeLocalidade ? null : $cidades->firstWhere('slug', $slug);
+            if (! $cidade && isset(self::LOCALIDADES[$slug])) {
+                [$slugCidade, $localidade] = self::LOCALIDADES[$slug];
+                $cidade = $cidades->firstWhere('slug', $slugCidade);
+                if ($cidade && empty($f['bairro'])) {
+                    $f['bairro'] = $cidade->bairros()->where('slug', $slug)->value('id');
+                }
+            }
             if (! $cidade) {
                 $cidadeNaoEncontrada = $f['cidade'];
             }
@@ -67,6 +104,7 @@ class BuscaController extends Controller
             'filtros' => $f,
             'cidadeAtual' => $cidade,
             'cidadeNaoEncontrada' => $cidadeNaoEncontrada,
+            'localidade' => $localidade,
             'cidades' => $cidades,
             'finalidades' => self::FINALIDADES,
             'tipos' => Normalizador::TIPOS,

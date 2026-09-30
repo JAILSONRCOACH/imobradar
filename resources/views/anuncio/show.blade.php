@@ -31,6 +31,13 @@
 
     <div class="ficha-corpo">
         <div class="coluna">
+            <div class="ficha-foto">
+                @if ($anuncio->foto_url)
+                    <img src="{{ $anuncio->foto_url }}" alt="Foto do anúncio em {{ $anuncio->fonte->nome }}" referrerpolicy="no-referrer" onerror="this.remove()">
+                @endif
+                @include('partials.foto-vazia', ['tipo' => $anuncio->tipo])
+                @if ($anuncio->foto_url) <small>Foto: {{ $anuncio->fonte->nome }}</small> @endif
+            </div>
 
         <section class="bloco">
             <h2>Características</h2>

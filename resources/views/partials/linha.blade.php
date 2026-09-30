@@ -14,10 +14,11 @@
 @endphp
 <li class="linha {{ $a->status === 'removido' ? 'saiu' : '' }}">
     <a href="{{ route('anuncio.show', $a) }}" class="linha-link">
-        <div class="linha-preco">
-            <strong>{{ \App\Support\Formata::moeda($a->preco, true) }}</strong>
-            @if ($a->preco && $unidade) <small>{{ \App\Support\Formata::unidadeCurta($unidade) }}</small> @endif
-            @if ($a->preco_m2) <small>R$ {{ \App\Support\Formata::numero($a->preco_m2) }}/m²</small> @endif
+        <div class="linha-foto">
+            @if ($a->foto_url)
+                <img src="{{ $a->foto_url }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">
+            @endif
+            @include('partials.foto-vazia', ['tipo' => $a->tipo])
         </div>
         <div class="linha-corpo">
             <p class="linha-marcas">
@@ -32,6 +33,11 @@
                 @elseif ($mud && $mud->preco_anterior && $mud->preco_novo > $mud->preco_anterior)
                     <span class="marca-subiu">Subiu {{ ltrim(\App\Support\Formata::variacao($mud->preco_anterior, $mud->preco_novo), '+') }}</span>
                 @endif
+            </p>
+            <p class="linha-preco">
+                <strong>{{ \App\Support\Formata::moeda($a->preco, true) }}</strong>
+                @if ($a->preco && $unidade) <small>{{ \App\Support\Formata::unidadeCurta($unidade) }}</small> @endif
+                @if ($a->preco_m2) <small>R$ {{ \App\Support\Formata::numero($a->preco_m2) }}/m²</small> @endif
             </p>
             <h3 class="linha-titulo">{{ $a->titulo }}</h3>
             <p class="linha-local">{{ $a->bairro?->nome ? $a->bairro->nome.', ' : '' }}{{ $a->cidade->nome }}</p>

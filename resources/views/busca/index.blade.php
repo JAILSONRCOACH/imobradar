@@ -3,9 +3,14 @@
 
 @php
     $acao = ['venda' => 'Comprar', 'aluguel' => 'Alugar', 'temporada' => 'Temporada'][$filtros['finalidade']];
-    $lugar = $cidadeAtual?->nome ?? ($cidadeNaoEncontrada ?: 'toda a Paraíba');
+    $lugar = $cidadeAtual ? ($localidade ? $localidade.', '.$cidadeAtual->nome : $cidadeAtual->nome) : ($cidadeNaoEncontrada ?: 'toda a Paraíba');
     $comAnuncios = $cidades->where('anuncios_count', '>', 0)->sortByDesc('anuncios_count')->values();
-    $listaCidades = $cidades->map(fn ($c) => ['n' => $c->nome, 's' => $c->slug, 'c' => $c->anuncios_count])->values();
+    $porSlug = $cidades->keyBy('slug');
+    $listaCidades = $cidades->map(fn ($c) => ['n' => $c->nome, 's' => $c->slug, 'c' => $c->anuncios_count])
+        ->concat(collect(\App\Http\Controllers\Web\BuscaController::LOCALIDADES)->map(fn ($l, $slug) => [
+            'n' => $l[1].' ('.($porSlug[$l[0]]->nome ?? '').')', 's' => $slug, 'c' => $porSlug[$l[0]]->anuncios_count ?? 0,
+        ]))
+        ->values();
 @endphp
 
 @section('titulo', $modo === 'inicio' ? 'Imóveis na Paraíba' : $acao.' imóveis em '.$lugar)

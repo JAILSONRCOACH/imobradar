@@ -119,12 +119,12 @@ h2 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
 /* ---------- lista de anúncios (um livro-razão, não cartões) ---------- */
 .lista { list-style: none; margin: 16px 0 0; padding: 0; background: var(--papel); border: 1px solid var(--linha); border-radius: 14px; overflow: hidden; }
 .linha + .linha { border-top: 1px solid var(--linha-2); }
-.linha-link { display: grid; grid-template-columns: 170px minmax(0, 1fr) 190px; gap: 20px; padding: 18px 20px; color: inherit; text-decoration: none; }
+.linha-link { display: grid; grid-template-columns: 220px minmax(0, 1fr) 170px; gap: 20px; padding: 16px; color: inherit; text-decoration: none; }
 .linha-link:hover { background: #F7FAFB; }
 .linha-link:hover .linha-titulo { color: var(--mar-3); }
 .linha.saiu .linha-link { opacity: .6; }
 
-.linha-preco { display: flex; flex-direction: column; gap: 2px; }
+.linha-preco { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 2px 0 4px; }
 .linha-preco strong { font-weight: 800; font-size: 22px; line-height: 1.1; letter-spacing: -.02em; }
 .linha-preco small { color: var(--apagado); font-size: 13px; }
 
@@ -219,8 +219,6 @@ h2 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
 /* ---------- celular ---------- */
 @media (max-width: 820px) {
   .linha-link { grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 16px; }
-  .linha-preco { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; order: 2; }
-  .linha-corpo { order: 1; }
   .linha-fonte { order: 3; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 4px 10px; text-align: left; }
   .ficha-corpo { grid-template-columns: minmax(0, 1fr); }
   .bloco-preco { position: static; }
@@ -309,3 +307,22 @@ h2 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
   .usuario { flex-direction: column; }
 }
 @media (max-width: 480px) { .campo-duplo { grid-template-columns: 1fr; } }
+
+/* ---------- mostrar senha ---------- */
+.campo-senha { position: relative; display: block; }
+.campo-senha input { padding-right: 48px; }
+.ver-senha { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--apagado); cursor: pointer; }
+.ver-senha:hover { color: var(--esmeralda); background: var(--fundo); }
+
+/* ---------- fotos ---------- */
+.linha-foto, .ficha-foto { position: relative; overflow: hidden; border-radius: 10px; background: linear-gradient(135deg, #E6F4F2, #E2E8F0); }
+.linha-foto { aspect-ratio: 4 / 3; align-self: start; }
+.linha-foto img, .ficha-foto img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; }
+.foto-vazia { position: absolute; inset: 0; display: grid; place-items: center; }
+.foto-vazia svg { width: 34%; max-width: 72px; fill: none; stroke: #7FB5AE; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.ficha-foto { aspect-ratio: 16 / 9; border: 1px solid var(--linha); }
+.ficha-foto small { position: absolute; z-index: 2; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: 6px; background: rgba(15, 23, 42, .7); color: #fff; font-size: 12px; }
+@media (max-width: 820px) {
+  .linha-foto { order: 0; aspect-ratio: 16 / 9; }
+  .linha-corpo { order: 1; }
+}

@@ -27,5 +27,6 @@
         @yield('conteudo')
     </main>
 </div>
+<script src="{{ asset('js/acesso.js') }}?v={{ @filemtime(public_path('js/acesso.js')) }}" defer></script>
 </body>
 </html>
