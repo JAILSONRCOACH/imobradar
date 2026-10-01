@@ -136,7 +136,8 @@ class BuscaController extends Controller
 
         // Busca sob demanda: se a cidade não foi buscada nas últimas horas, dispara a busca na web agora.
         $sobDemanda = ['busca' => null, 'motivo' => null];
-        if ($cidade && empty($f['removidos'])) {
+        // Só o administrador dispara buscas na web (custo). Usuários veem o que já está salvo.
+        if ($cidade && empty($f['removidos']) && $request->user()?->is_admin && $request->boolean('atualizar')) {
             $sobDemanda = app(\App\Services\BuscaSobDemanda::class)->garantir($cidade, $f['finalidade'], $request->user());
         }
 

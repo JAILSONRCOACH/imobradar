@@ -125,7 +125,10 @@
             @elseif ($buscaMotivo)
                 <p class="aviso">{{ $buscaMotivo }}</p>
             @elseif ($ultimaBusca)
-                <p class="atualizado">Buscado na web em {{ $ultimaBusca->concluida_em->format('d/m') }} às {{ $ultimaBusca->concluida_em->format('H:i') }}.</p>
+                <p class="atualizado">Atualizado em {{ $ultimaBusca->concluida_em->format('d/m') }} às {{ $ultimaBusca->concluida_em->format('H:i') }}.</p>
+            @endif
+            @if ($cidadeAtual && ! $buscaAtual && auth()->user()?->is_admin)
+                <p class="atualizado"><a href="{{ request()->fullUrlWithQuery(['atualizar' => 1, 'page' => null]) }}">Buscar anúncios de {{ $cidadeAtual->nome }} na web agora</a> (só administrador; gera custo de API)</p>
             @endif
             <p>{{ Formata::numero($anuncios->total()) }} {{ $anuncios->total() === 1 ? 'imóvel encontrado' : 'imóveis encontrados' }}@if (empty($filtros['repetidos']) && $anuncios->total()), sem contar os repetidos entre sites @endif</p>
         </header>
