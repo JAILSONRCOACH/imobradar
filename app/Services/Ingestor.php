@@ -307,7 +307,7 @@ class Ingestor
         $slug = \App\Support\Fontes::slug($nome, $item['url'] ?? null);
 
         if (! array_key_exists($slug, $this->fontes)) {
-            $fonte = \App\Models\Fonte::firstOrCreate(['slug' => $slug], ['nome' => $nome, 'tipo' => 'portal']);
+            $fonte = \App\Models\Fonte::firstOrCreate(['slug' => $slug], ['nome' => $nome, 'tipo' => 'portal', 'ativa' => true]);
             $this->fontes[$slug] = $fonte->ativa ? $fonte->id : 0;
         }
         if ($this->fontes[$slug] === 0) {

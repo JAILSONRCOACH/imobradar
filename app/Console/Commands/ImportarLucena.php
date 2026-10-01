@@ -180,7 +180,7 @@ class ImportarLucena extends Command
     private function coleta(string $fonteSlug): Coleta
     {
         if (! isset($this->coletas[$fonteSlug])) {
-            $fonte = Fonte::firstOrCreate(['slug' => $fonteSlug], ['nome' => $fonteSlug]);
+            $fonte = Fonte::firstOrCreate(['slug' => $fonteSlug], ['nome' => $fonteSlug, 'ativa' => true]);
             $this->coletas[$fonteSlug] = Coleta::create([
                 'fonte_id' => $fonte->id,
                 'cidade_id' => Cidade::where('ibge', self::IBGE_LUCENA)->value('id'),

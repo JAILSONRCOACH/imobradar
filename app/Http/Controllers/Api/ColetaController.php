@@ -40,6 +40,7 @@ class ColetaController extends Controller
                 'nome' => $v['fonte_nome'] ?? Str::headline($v['fonte']),
                 'site_url' => $v['fonte_url'] ?? null,
                 'tipo' => $v['fonte_tipo'] ?? 'portal',
+                'ativa' => true,
             ],
         );
         if (! $fonte->ativa) {

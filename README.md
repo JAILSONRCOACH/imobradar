@@ -81,3 +81,10 @@ Atualizações: `bash deploy.sh` dentro de `app/`.
 composer install
 php artisan test
 ```
+
+## Atualização semanal
+
+Rotinas do Claude Code (ver `rotinas/ROTINAS-SEMANAIS.md`) gravam um JSON por cidade no ramo `dados`.
+O cron da Hostinger roda `php artisan imobradar:importar-semanal` toda segunda, importa as cidades e
+marca como fora do ar o que não aparece há mais de 21 dias. Lucena continua com a rotina diária própria
+(`imobradar:importar-lucena`).
